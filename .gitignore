@@ -22,3 +22,26 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Vercel / Serverless Specifics
+/tmp
+/api/index.php
+/vercel.json
+
+# Laravel Cache Files (Prevent committing generated cache)
+/bootstrap/cache/*.php
+!/bootstrap/cache/.gitignore
+
+# Storage Directories (Keep structure, ignore content)
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
+!/storage/framework/.gitignore
+!/storage/framework/cache/.gitignore
+!/storage/framework/sessions/.gitignore
+!/storage/framework/views/.gitignore
+!/storage/logs/.gitignore
+
+# OS Generated Files
+/desktop.ini
