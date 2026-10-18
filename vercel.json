@@ -1,10 +1,11 @@
 {
     "version": 2,
-    "functions": {
-        "api/index.php": {
-            "runtime": "vercel-php@0.7.1"
+    "builds": [
+        {
+            "src": "api/index.php",
+            "use": "@vercel/php"
         }
-    },
+    ],
     "routes": [
         {
             "src": "/build/(.*)",
@@ -27,11 +28,5 @@
         "CACHE_DRIVER": "array",
         "LOG_CHANNEL": "stderr",
         "SESSION_DRIVER": "cookie"
-    },
-    "builds": [
-        {
-            "src": "api/index.php",
-            "use": "vercel-php@0.7.1"
-        }
-    ]
+    }
 }
