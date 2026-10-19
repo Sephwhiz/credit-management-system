@@ -20,19 +20,33 @@ try {
         }
     }
 
-    // 3. Load Laravel
+    // 3. CRITICAL FIX: Delete all compiled cache files to force regeneration
+    $cacheFiles = [
+        '/tmp/config.php',
+        '/tmp/services.php',
+        '/tmp/packages.php',
+        '/tmp/routes.php',
+        '/tmp/events.php'
+    ];
+    foreach ($cacheFiles as $file) {
+        if (file_exists($file)) {
+            unlink($file);
+        }
+    }
+
+    // 4. Load Laravel
     require __DIR__ . '/../vendor/autoload.php';
     $app = require_once __DIR__ . '/../bootstrap/app.php';
     
-    // 4. Handle Request
+    // 5. Handle Request
     $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
     $response = $kernel->handle($request = Illuminate\Http\Request::capture());
     $response->send();
     $kernel->terminate($request, $response);
 
 } catch (\Throwable $e) {
-    // 5. Display RAW error details
-    ob_end_clean(); // Clear any partial output
+    // 6. Display RAW error details
+    ob_end_clean();
     header('Content-Type: text/html; charset=utf-8');
     echo "<h1 style='color:red'>⚠️ FATAL ERROR</h1>";
     echo "<pre style='background:#222;color:#fff;padding:15px;border-radius:5px;font-family:monospace;'>";
@@ -40,6 +54,5 @@ try {
     echo "File: " . $e->getFile() . ":" . $e->getLine() . "\n\n";
     echo "Trace:\n" . htmlspecialchars($e->getTraceAsString()) . "\n";
     echo "</pre>";
-    echo "<p><small>Check Vercel Function Logs for server-side details.</small></p>";
     exit(1);
 }
