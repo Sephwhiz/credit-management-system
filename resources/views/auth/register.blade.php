@@ -35,10 +35,10 @@
             <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
         </div>
 
-        <!-- Module 9: reCAPTCHA Integration -->
+        <!-- Module 9: reCAPTCHA Integration (Native HTML/JS) -->
         <div class="mt-4">
-             {!! NoCaptcha::renderJs() !!} <!-- Explicitly render JS first -->
-            {!! NoCaptcha::display() !!}
+            <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+            <div class="g-recaptcha" data-sitekey="{{ config('services.recaptcha.site_key') }}"></div>
             <x-input-error :messages="$errors->get('g-recaptcha-response')" class="mt-2" />
         </div>
 

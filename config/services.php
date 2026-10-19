@@ -36,8 +36,8 @@ return [
     ],
 
     'recaptcha' => [
-    'sitekey' => env('NOCAPTCHA_SITEKEY'),
-    'secret'  => env('NOCAPTCHA_SECRET'),
+    'sitekey' => env('6Ld8qfQtAAAAABRItxM_s7H5BR2nUsCBSku-ZSOG'),
+    'secret'  => env('6Ld8qfQtAAAAABuy8UpoTrx77OfQZmX9C7RlwGge'),
     ],
 
 ];
