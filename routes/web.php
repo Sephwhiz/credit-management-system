@@ -40,21 +40,6 @@ Route::middleware('auth')->group(function () {
     // Charts & Analytics (Module 11: Data Visualization)
     Route::get('/charts', [ChartController::class, 'index'])->name('charts.index');
 
-    // Email Verification Resend
-    Route::get('/email/verify', function () {
-        return view('auth.verify-email');
-    })->middleware('auth')->name('verification.notice');
-
-    Route::get('/email/verify/{id}/{hash}', function (\Illuminate\Foundation\Auth\EmailVerificationRequest $request) {
-        $request->fulfill();
-        return redirect('/dashboard');
-    })->middleware(['auth', 'signed'])->name('verification.verify');
-
-    Route::post('/email/verification-notification', function (\Illuminate\Http\Request $request) {
-        $request->user()->sendEmailVerificationNotification();
-        return back()->with('message', 'Verification link sent!');
-    })->middleware(['auth', 'throttle:6,1'])->name('verification.send');
-
     // Admin Panel Routes (Protected by AdminMiddleware)
     Route::prefix('admin')->middleware('admin')->group(function () {
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
