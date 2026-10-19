@@ -1,5 +1,4 @@
 <?php
-// Capture ALL errors immediately
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 ob_start();
@@ -20,19 +19,24 @@ try {
         }
     }
 
-    // 3. CRITICAL FIX: Delete all compiled cache files to force regeneration
+    // 3. CRITICAL: Delete ALL compiled caches AND set env vars to prevent caching
     $cacheFiles = [
         '/tmp/config.php',
-        '/tmp/services.php',
+        '/tmp/services.php', 
         '/tmp/packages.php',
         '/tmp/routes.php',
         '/tmp/events.php'
     ];
     foreach ($cacheFiles as $file) {
-        if (file_exists($file)) {
-            unlink($file);
-        }
+        if (file_exists($file)) unlink($file);
     }
+    
+    // Force Laravel to skip cache loading
+    putenv('APP_CONFIG_CACHE=');
+    putenv('APP_SERVICES_CACHE=');
+    putenv('APP_PACKAGES_CACHE=');
+    putenv('APP_ROUTES_CACHE=');
+    putenv('APP_EVENTS_CACHE=');
 
     // 4. Load Laravel
     require __DIR__ . '/../vendor/autoload.php';
@@ -45,7 +49,6 @@ try {
     $kernel->terminate($request, $response);
 
 } catch (\Throwable $e) {
-    // 6. Display RAW error details
     ob_end_clean();
     header('Content-Type: text/html; charset=utf-8');
     echo "<h1 style='color:red'>⚠️ FATAL ERROR</h1>";
