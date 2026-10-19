@@ -84,19 +84,21 @@ return [
             ]) : [],
         ],
 
-        'pgsql' => [
+       'pgsql' => [
     'driver' => 'pgsql',
-    'url' => env('DATABASE_URL'), // Keep URL as primary source
-    'host' => 'aws-0-ap-southeast-1.pooler.supabase.com', // HARDCODED FALLBACK
-    'port' => '6543',              // HARDCODED FALLBACK
-    'database' => 'postgres',      // HARDCODED FALLBACK
-    'username' => 'postgres.ffajlceihlauhksdjaxo', // HARDCODED FALLBACK
-    'password' => 'EleazaR#023',   // HARDCODED FALLBACK
+    'url' => env('DATABASE_URL'),
+    'host' => 'aws-0-ap-southeast-1.pooler.supabase.com',
+    'port' => '6543',
+    'database' => 'postgres',
+    'username' => 'postgres.ffajlceihlauhksdjaxo',
+    'password' => 'EleazaR#023',
     'charset' => 'utf8',
     'prefix' => '',
     'prefix_indexes' => true,
     'search_path' => 'public',
-    'sslmode' => 'require',        // CRITICAL FOR SUPABASE
+    'sslmode' => 'require',
+    // ADD THIS LINE TO FIX SUPABASE POOLER COMPATIBILITY
+    'options' => [PDO::ATTR_EMULATE_PREPARES => true],
 ],
 
         'sqlsrv' => [
