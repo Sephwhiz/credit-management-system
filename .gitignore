@@ -46,6 +46,7 @@ Thumbs.db
 # OS Generated Files
 /desktop.ini
 
-# Allow Vite build output
-!/public/build
+# Allow Vite production build assets
+!/public/build/
+!/public/build/**
 /public/build/*.map
