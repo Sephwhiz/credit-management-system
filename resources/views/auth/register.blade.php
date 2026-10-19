@@ -49,11 +49,22 @@
         </div>
 
         <!-- Module 9: reCAPTCHA Integration -->
-        <div style="margin-top:1rem;">
-            <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-            <div class="g-recaptcha" data-sitekey="{{ config('services.recaptcha.site_key') }}"></div>
-            @error('g-recaptcha-response') <p class="error-msg">{{ $message }}</p> @enderror
-        </div>
+<div style="margin-top:1rem;">
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    
+    {{-- Debug: Show if site key is missing --}}
+    @if(empty(config('services.recaptcha.site_key')))
+        <p class="error-msg">⚠️ reCAPTCHA site key is missing! Check Railway Variables.</p>
+    @endif
+    
+    <div class="g-recaptcha" 
+         data-sitekey="{{ config('services.recaptcha.site_key', '6Ld8qfQtAAAAABRItxM_s7H5BR2nUsCBSku-ZSOG') }}">
+    </div>
+    
+    @error('g-recaptcha-response') 
+        <p class="error-msg">{{ $message }}</p> 
+    @enderror
+</div>
 
         <!-- Action Buttons -->
         <div class="btn-row">
