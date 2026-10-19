@@ -8,7 +8,6 @@ use App\Http\Controllers\ChartController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Artisan;
 
 // Public Routes
 Route::get('/', function () {
@@ -64,12 +63,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/loans/{loan}/reject', [AdminLoanController::class, 'reject'])->name('admin.loans.reject');
         Route::get('/analytics', [AdminAnalyticsController::class, 'index'])->name('admin.analytics');
     });
-
-    // TEMPORARY: Run migrations on production (DELETE AFTER USE)
-    Route::get('/run-migrations', function () {
-        Artisan::call('migrate', ['--force' => true]);
-        return '<pre>' . Artisan::output() . '</pre>';
-    })->middleware('admin');
 });
 
 require __DIR__.'/auth.php';
