@@ -19,7 +19,7 @@ try {
         }
     }
 
-    // 3. CRITICAL: Delete ALL compiled caches AND set env vars to prevent caching
+    // 3. CRITICAL FIX: Delete compiled caches BUT keep valid /tmp paths
     $cacheFiles = [
         '/tmp/config.php',
         '/tmp/services.php', 
@@ -31,12 +31,13 @@ try {
         if (file_exists($file)) unlink($file);
     }
     
-    // Force Laravel to skip cache loading
-    putenv('APP_CONFIG_CACHE=');
-    putenv('APP_SERVICES_CACHE=');
-    putenv('APP_PACKAGES_CACHE=');
-    putenv('APP_ROUTES_CACHE=');
-    putenv('APP_EVENTS_CACHE=');
+    // Set CORRECT cache paths (NOT empty strings!)
+    putenv('APP_CONFIG_CACHE=/tmp/config.php');
+    putenv('APP_SERVICES_CACHE=/tmp/services.php');
+    putenv('APP_PACKAGES_CACHE=/tmp/packages.php');
+    putenv('APP_ROUTES_CACHE=/tmp/routes.php');
+    putenv('APP_EVENTS_CACHE=/tmp/events.php');
+    putenv('VIEW_COMPILED_PATH=/tmp/views');
 
     // 4. Load Laravel
     require __DIR__ . '/../vendor/autoload.php';
@@ -51,7 +52,7 @@ try {
 } catch (\Throwable $e) {
     ob_end_clean();
     header('Content-Type: text/html; charset=utf-8');
-    echo "<h1 style='color:red'>⚠️ FATAL ERROR</h1>";
+    echo "<h1 style='color:red'>️ FATAL ERROR</h1>";
     echo "<pre style='background:#222;color:#fff;padding:15px;border-radius:5px;font-family:monospace;'>";
     echo "Message: " . htmlspecialchars($e->getMessage()) . "\n";
     echo "File: " . $e->getFile() . ":" . $e->getLine() . "\n\n";
