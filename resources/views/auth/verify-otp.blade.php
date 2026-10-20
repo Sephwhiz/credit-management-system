@@ -1,4 +1,13 @@
 <x-guest-layout>
+    <!-- DEBUG: Show OTP Code (Remove in production) -->
+    @if(session('debug_otp'))
+        <div style="background: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem; text-align: center;">
+            <strong> DEBUG - Your OTP Code:</strong> 
+            <span style="font-size: 1.5rem; font-weight: bold; letter-spacing: 0.25rem; display: block; margin-top: 0.5rem;">{{ session('debug_otp') }}</span>
+            <small style="display: block; margin-top: 0.5rem; opacity: 0.8;">(Copy this code to verify below)</small>
+        </div>
+    @endif
+
     <div class="mb-4 text-sm text-gray-600">
         {{ __('We\'ve sent a 6-digit OTP to your email. Please enter it below to verify your account.') }}
     </div>

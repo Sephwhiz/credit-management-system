@@ -31,12 +31,12 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request, OtpService $otpService): RedirectResponse
     {
-        // Module 9: reCAPTCHA Validation
+        // Module 9: reCAPTCHA Validation (Temporarily Disabled)
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-           // 'g-recaptcha-response' => ['required', 'captcha'],
+            // 'g-recaptcha-response' => ['required', 'captcha'],
         ]);
 
         // Create User
@@ -59,8 +59,11 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 
-        // Redirect to OTP verification page instead of dashboard
-        return redirect()->route('verify-otp')->with('success', 'Registration successful! Please check your email for the OTP.');
+        // Redirect to OTP verification page with DEBUG OTP display
+        return redirect()->route('verify-otp')->with([
+            'success' => 'Registration successful! Please check your email for the OTP.',
+            'debug_otp' => $otp // TEMPORARY: Shows OTP on verification page
+        ]);
     }
 
     /**
