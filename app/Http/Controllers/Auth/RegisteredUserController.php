@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -48,7 +49,14 @@ class RegisteredUserController extends Controller
 
         // Module 10: Generate and Send OTP
         $otp = $otpService->generate();
-        $otpService->send($user->email, $otp);
+        
+        // Try to send email, but don't crash if SMTP is blocked by Railway
+        try {
+            $otpService->send($user->email, $otp);
+        } catch (\Exception $e) {
+            Log::warning('Failed to send OTP email: ' . $e->getMessage());
+            // Email failed, but we still have the OTP in session for verification
+        }
 
         // Store OTP in session for verification
         session([
@@ -62,7 +70,7 @@ class RegisteredUserController extends Controller
         // Redirect to OTP verification page with DEBUG OTP display
         return redirect()->route('verify-otp')->with([
             'success' => 'Registration successful! Please check your email for the OTP.',
-            'debug_otp' => $otp // TEMPORARY: Shows OTP on verification page
+            'debug_otp' => $otp // TEMPORARY: Shows OTP on verification page since email may fail
         ]);
     }
 
