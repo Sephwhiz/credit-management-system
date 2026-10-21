@@ -53,7 +53,7 @@ class RegisteredUserController extends Controller
         // Try to send email, but don't crash if SMTP is blocked by Railway
         try {
             $otpService->send($user->email, $otp);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::warning('Failed to send OTP email: ' . $e->getMessage());
             // Email failed, but we still have the OTP in session for verification
         }

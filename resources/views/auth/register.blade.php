@@ -1,29 +1,11 @@
 <x-guest-layout>
-    <style>
-        body { font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; background: #fff; color: #1f2937; }
-        label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem; }
-        input[type="text"], input[type="email"], input[type="password"] {
-            display: block; width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem; margin-top: 0.25rem;
-        }
-        input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-        .error-msg { color: #dc2626; font-size: 0.75rem; margin-top: 0.25rem; }
-        .g-recaptcha { margin: 1rem 0; min-height: 78px; }
-        .btn-row { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; }
-        .btn-primary { background: #4f46e5; color: white; padding: 0.5rem 1.5rem; border: none; border-radius: 0.375rem; font-size: 0.875rem; cursor: pointer; }
-        .btn-primary:hover { background: #4338ca; }
-        a.link { color: #6b7280; font-size: 0.875rem; text-decoration: underline; }
-        .global-error { background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem; }
-        .global-error ul { margin: 0; padding-left: 1.5rem; }
-    </style>
-
     <form method="POST" action="{{ route('register') }}">
         @csrf
 
-        <!-- GLOBAL ERROR BANNER -->
         @if ($errors->any())
-            <div class="global-error">
+            <div role="alert" class="mb-4 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-800">
                 <strong>Please fix these errors:</strong>
-                <ul>
+                <ul class="mt-1 list-inside list-disc">
                     @foreach ($errors->all() as $error)
                         <li>{{ $error }}</li>
                     @endforeach
@@ -32,38 +14,40 @@
         @endif
 
         <div>
-            <label for="name">Name</label>
-            <input id="name" type="text" name="name" value="{{ old('name') }}" required autofocus autocomplete="name" />
-            @error('name') <p class="error-msg">{{ $message }}</p> @enderror
+            <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+            <input id="name" type="text" name="name" value="{{ old('name') }}" required autofocus autocomplete="name" class="mt-1" />
+            @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
-        <div style="margin-top:1rem;">
-            <label for="email">Email</label>
-            <input id="email" type="email" name="email" value="{{ old('email') }}" required autocomplete="username" />
-            @error('email') <p class="error-msg">{{ $message }}</p> @enderror
+        <div class="mt-4">
+            <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+            <input id="email" type="email" name="email" value="{{ old('email') }}" required autocomplete="username" class="mt-1" />
+            @error('email') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
-        <div style="margin-top:1rem;">
-            <label for="password">Password</label>
-            <input id="password" type="password" name="password" required autocomplete="new-password" />
-            @error('password') <p class="error-msg">{{ $message }}</p> @enderror
+        <div class="mt-4">
+            <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+            <input id="password" type="password" name="password" required autocomplete="new-password" class="mt-1" />
+            @error('password') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
-        <div style="margin-top:1rem;">
-            <label for="password_confirmation">Confirm Password</label>
-            <input id="password_confirmation" type="password" name="password_confirmation" required autocomplete="new-password" />
-            @error('password_confirmation') <p class="error-msg">{{ $message }}</p> @enderror
+        <div class="mt-4">
+            <label for="password_confirmation" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+            <input id="password_confirmation" type="password" name="password_confirmation" required autocomplete="new-password" class="mt-1" />
+            @error('password_confirmation') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
-        <div style="margin-top:1rem;">
+        <div class="mt-4">
             <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-            <div class="g-recaptcha" data-sitekey="6Ld8qfQtAAAAABRItxM_s7H5BR2nUsCBSku-ZSOG"></div>
-            @error('g-recaptcha-response') <p class="error-msg">{{ $message }}</p> @enderror
+            <div class="overflow-x-auto py-1">
+                <div class="g-recaptcha" data-sitekey="6Ld8qfQtAAAAABRItxM_s7H5BR2nUsCBSku-ZSOG"></div>
+            </div>
+            @error('g-recaptcha-response') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
-        <div class="btn-row">
-            <a class="link" href="{{ route('login') }}">Already registered?</a>
-            <button type="submit" class="btn-primary">Register</button>
+        <div class="auth-actions mt-6">
+            <a class="text-sm underline" href="{{ route('login') }}">Already registered?</a>
+            <button type="submit">Register</button>
         </div>
     </form>
 </x-guest-layout>
