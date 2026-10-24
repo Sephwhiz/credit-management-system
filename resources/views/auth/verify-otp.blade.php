@@ -1,9 +1,14 @@
 <x-guest-layout>
+    <!-- OTP Display Box -->
     @if(isset($dbOtp) && $dbOtp)
         <div style="background: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem; text-align: center;">
             <strong>Your OTP Code:</strong> 
             <span style="font-size: 1.5rem; font-weight: bold; letter-spacing: 0.25rem; display: block; margin-top: 0.5rem;">{{ $dbOtp }}</span>
-            <small style="display: block; margin-top: 0.5rem; opacity: 0.8;">(Copy this code to verify below)</small>
+            <small style="display: block; margin-top: 0.5rem; opacity: 0.8;">(Enter this code below to verify)</small>
+        </div>
+    @elseif(session('error'))
+        <div style="background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem; text-align: center;">
+            {{ session('error') }}
         </div>
     @endif
 
@@ -17,12 +22,6 @@
         </div>
     @endif
 
-    @if (isset($error))
-        <div class="mb-4 font-medium text-sm text-red-600">
-            {{ $error }}
-        </div>
-    @endif
-
     <form method="POST" action="{{ route('verify-otp.confirm') }}">
         @csrf
 
@@ -33,7 +32,7 @@
             <x-input-error :messages="$errors->get('otp')" class="mt-2" />
         </div>
 
-        <!-- Resend OTP Link (Optional Enhancement) -->
+        <!-- Resend OTP Link -->
         <div class="flex items-center justify-end mt-4">
             <a href="#" class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                 {{ __('Resend OTP?') }}
