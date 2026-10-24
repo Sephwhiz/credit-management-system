@@ -140,46 +140,30 @@ class RegisteredUserController extends Controller
         $userOtp = $request->input('otp');
         $pendingUserId = session('pending_user_id');
 
-        // Verify OTP against database record
+        // Verify OTP against database record - SINGLE ATOMIC QUERY
         try {
-            $hasOtp = DB::table('user_otps')
-                ->where('user_id', $pendingUserId)
-                ->exists();
-
-            if (!$hasOtp) {
-                return back()
-                    ->withErrors(['otp' => 'No valid OTP found. Please register again.'])
-                    ->withInput();
-            }
-
-            $matchingOtp = DB::table('user_otps')
+            $validOtp = DB::table('user_otps')
                 ->where('user_id', $pendingUserId)
                 ->where('code', $userOtp)
+                ->where('used', false)
+                ->where('expires_at', '>', now())
                 ->orderBy('created_at', 'desc')
                 ->first();
 
-            if (!$matchingOtp) {
-                return back()
-                    ->withErrors(['otp' => 'Incorrect OTP code.'])
-                    ->withInput();
-            }
-
-            if ($matchingOtp->used) {
-                return back()
-                    ->withErrors(['otp' => 'This OTP has already been used.'])
-                    ->withInput();
-            }
-
-            $validOtp = DB::table('user_otps')
-                ->where('id', $matchingOtp->id)
-                ->where('expires_at', '>', now())
-                ->where('used', false)
-                ->first();
-
             if (!$validOtp) {
-                return back()
-                    ->withErrors(['otp' => 'OTP has expired. Please request a new one.'])
-                    ->withInput();
+                // Determine specific failure reason for better UX
+                $anyOtp = DB::table('user_otps')
+                    ->where('user_id', $pendingUserId)
+                    ->where('code', $userOtp)
+                    ->first();
+
+                if (!$anyOtp) {
+                    return back()->withErrors(['otp' => 'Incorrect OTP code.'])->withInput();
+                } elseif ($anyOtp->used) {
+                    return back()->withErrors(['otp' => 'This OTP has already been used.'])->withInput();
+                } else {
+                    return back()->withErrors(['otp' => 'OTP has expired. Please request a new one.'])->withInput();
+                }
             }
         } catch (Throwable $e) {
             Log::error('Unable to verify OTP against the database.', [

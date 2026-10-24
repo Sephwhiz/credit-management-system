@@ -1,10 +1,10 @@
 <x-guest-layout>
-    <!-- OTP Display Box -->
-    @if(isset($dbOtp) && $dbOtp)
+    <!-- DEBUG MODE: OTP Display Box (Only visible when APP_DEBUG=true) -->
+    @if(config('app.debug') && isset($dbOtp) && $dbOtp)
         <div style="background: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem; text-align: center;">
-            <strong>Your OTP Code:</strong> 
+            <strong>🔧 DEBUG MODE - Your OTP Code:</strong> 
             <span style="font-size: 1.5rem; font-weight: bold; letter-spacing: 0.25rem; display: block; margin-top: 0.5rem;">{{ $dbOtp }}</span>
-            <small style="display: block; margin-top: 0.5rem; opacity: 0.8;">(Enter this code below to verify)</small>
+            <small style="display: block; margin-top: 0.5rem; opacity: 0.8;">(This will not appear in production)</small>
         </div>
     @elseif(session('error'))
         <div style="background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem; text-align: center;">
