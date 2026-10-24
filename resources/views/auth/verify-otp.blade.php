@@ -1,20 +1,5 @@
 <x-guest-layout>
-    <!-- DB-Stored OTP Display (Shows only if valid unused OTP exists for pending user) -->
-    @php
-        $pendingUserId = session('pending_user_id');
-        $dbOtp = null;
-        
-        if ($pendingUserId) {
-            $dbOtp = \DB::table('user_otps')
-                ->where('user_id', $pendingUserId)
-                ->where('expires_at', '>', now())
-                ->where('used', false)
-                ->orderBy('created_at', 'desc')
-                ->value('code');
-        }
-    @endphp
-
-    @if($dbOtp)
+    @if(isset($dbOtp) && $dbOtp)
         <div style="background: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem; text-align: center;">
             <strong>Your OTP Code:</strong> 
             <span style="font-size: 1.5rem; font-weight: bold; letter-spacing: 0.25rem; display: block; margin-top: 0.5rem;">{{ $dbOtp }}</span>
@@ -29,6 +14,12 @@
     @if (session('success'))
         <div class="mb-4 font-medium text-sm text-green-600">
             {{ session('success') }}
+        </div>
+    @endif
+
+    @if (isset($error))
+        <div class="mb-4 font-medium text-sm text-red-600">
+            {{ $error }}
         </div>
     @endif
 

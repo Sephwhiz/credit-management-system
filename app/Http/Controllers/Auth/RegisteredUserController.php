@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Throwable;
 
 class RegisteredUserController extends Controller
 {
@@ -41,24 +42,33 @@ class RegisteredUserController extends Controller
             // 'g-recaptcha-response' => ['required', 'captcha'],
         ]);
 
-        // Create User
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        try {
+            [$user, $otp] = DB::transaction(function () use ($request, $otpService) {
+                $user = User::create([
+                    'name' => $request->name,
+                    'email' => $request->email,
+                    'password' => Hash::make($request->password),
+                ]);
 
-        // Module 10: Generate and Store OTP in Database
-        $otp = $otpService->generate();
-        
-        // ALWAYS store OTP in database (works regardless of debug/SMTP status)
-        DB::table('user_otps')->insert([
-            'user_id' => $user->id,
-            'code' => $otp,
-            'expires_at' => now()->addMinutes(5),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+                $otp = $otpService->generate();
+
+                DB::table('user_otps')->insert([
+                    'user_id' => $user->id,
+                    'code' => $otp,
+                    'expires_at' => now()->addMinutes(5),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                return [$user, $otp];
+            });
+        } catch (Throwable $e) {
+            Log::error('Unable to create user registration OTP.', ['exception' => $e]);
+
+            return back()
+                ->withInput($request->except('password', 'password_confirmation'))
+                ->withErrors(['registration' => 'We could not complete your registration right now. Please try again.']);
+        }
 
         // Try to send email but never let it block registration
         try {
@@ -82,14 +92,33 @@ class RegisteredUserController extends Controller
      * Show the OTP verification form.
      * Module 10 Step 5: Verify OTP and Handle Verification Flow
      */
-    public function showOtpVerification(): View
+    public function showOtpVerification(): View|RedirectResponse
     {
         // Ensure there's a pending OTP in session
-        if (!session()->has('pending_user_id')) {
+        $pendingUserId = session('pending_user_id');
+
+        if (!$pendingUserId) {
             return redirect()->route('register')->withErrors(['otp' => 'No pending verification found. Please register again.']);
         }
 
-        return view('auth.verify-otp');
+        try {
+            $dbOtp = DB::table('user_otps')
+                ->where('user_id', $pendingUserId)
+                ->where('expires_at', '>', now())
+                ->where('used', false)
+                ->orderBy('created_at', 'desc')
+                ->value('code');
+        } catch (Throwable $e) {
+            Log::error('Unable to load pending OTP.', [
+                'pending_user_id' => $pendingUserId,
+                'exception' => $e,
+            ]);
+
+            return view('auth.verify-otp', ['dbOtp' => null])
+                ->with('error', 'We could not load your verification code right now. You can still enter the code sent to your email, or try again shortly.');
+        }
+
+        return view('auth.verify-otp', compact('dbOtp'));
     }
 
     /**
@@ -112,18 +141,40 @@ class RegisteredUserController extends Controller
         $otpExpiry = session('otp_expiry');
 
         // Verify OTP against database record
-        $validOtp = DB::table('user_otps')
-            ->where('user_id', $pendingUserId)
-            ->where('code', $userOtp)
-            ->where('expires_at', '>', now())
-            ->where('used', false)
-            ->first();
+        try {
+            $validOtp = DB::table('user_otps')
+                ->where('user_id', $pendingUserId)
+                ->where('code', $userOtp)
+                ->where('expires_at', '>', now())
+                ->where('used', false)
+                ->first();
+        } catch (Throwable $e) {
+            Log::error('Unable to verify OTP against the database.', [
+                'pending_user_id' => $pendingUserId,
+                'exception' => $e,
+            ]);
 
-        if ($validOtp && now()->lt($otpExpiry)) {
+            return back()
+                ->withErrors(['otp' => 'We could not verify your OTP right now. Please try again shortly.'])
+                ->withInput();
+        }
+
+        if ($validOtp && $otpExpiry && now()->lt($otpExpiry)) {
             // Mark OTP as used in database to prevent replay attacks
-            DB::table('user_otps')
-                ->where('id', $validOtp->id)
-                ->update(['used' => true]);
+            try {
+                DB::table('user_otps')
+                    ->where('id', $validOtp->id)
+                    ->update(['used' => true]);
+            } catch (Throwable $e) {
+                Log::error('Unable to mark OTP as used.', [
+                    'pending_user_id' => $pendingUserId,
+                    'exception' => $e,
+                ]);
+
+                return back()
+                    ->withErrors(['otp' => 'We could not complete OTP verification right now. Please try again shortly.'])
+                    ->withInput();
+            }
 
             // Clear session data
             session()->forget(['pending_user_id', 'otp_expiry']);
