@@ -34,6 +34,8 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request, OtpService $otpService): RedirectResponse
     {
+        session()->forget(['pending_user_id', 'otp_expiry']);
+
         // Module 9: reCAPTCHA Validation (Temporarily Disabled)
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -104,7 +106,6 @@ class RegisteredUserController extends Controller
         try {
             $dbOtp = DB::table('user_otps')
                 ->where('user_id', $pendingUserId)
-                ->where('expires_at', '>', now())
                 ->where('used', false)
                 ->orderBy('created_at', 'desc')
                 ->value('code');
@@ -127,21 +128,6 @@ class RegisteredUserController extends Controller
      */
     public function confirmOtp(Request $request): RedirectResponse
     {
-        // DEBUG: Show exactly what Laravel finds for this session
-        $pendingId = session('pending_user_id');
-        $otpExpiry = session('otp_expiry');
-        $serverTime = now()->setTimezone('Asia/Singapore')->toDateTimeString();
-        $dbRecord = DB::table('user_otps')
-            ->where('user_id', $pendingId)
-            ->latest()
-            ->first();
-
-        dd([
-            'Session Pending User ID' => $pendingId,
-            'Session OTP Expiry' => $otpExpiry,
-            'Current Server Time (SGT)' => $serverTime,
-            'DB Query Result' => $dbRecord,
-        ]);
         // Custom Validation per Module 10 Step 6
         $request->validate([
             'otp' => ['required', 'numeric', 'digits:6'],
@@ -153,16 +139,48 @@ class RegisteredUserController extends Controller
 
         $userOtp = $request->input('otp');
         $pendingUserId = session('pending_user_id');
-        $otpExpiry = session('otp_expiry');
 
         // Verify OTP against database record
         try {
-            $validOtp = DB::table('user_otps')
+            $hasOtp = DB::table('user_otps')
+                ->where('user_id', $pendingUserId)
+                ->exists();
+
+            if (!$hasOtp) {
+                return back()
+                    ->withErrors(['otp' => 'No valid OTP found. Please register again.'])
+                    ->withInput();
+            }
+
+            $matchingOtp = DB::table('user_otps')
                 ->where('user_id', $pendingUserId)
                 ->where('code', $userOtp)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if (!$matchingOtp) {
+                return back()
+                    ->withErrors(['otp' => 'Incorrect OTP code.'])
+                    ->withInput();
+            }
+
+            if ($matchingOtp->used) {
+                return back()
+                    ->withErrors(['otp' => 'This OTP has already been used.'])
+                    ->withInput();
+            }
+
+            $validOtp = DB::table('user_otps')
+                ->where('id', $matchingOtp->id)
                 ->where('expires_at', '>', now())
                 ->where('used', false)
                 ->first();
+
+            if (!$validOtp) {
+                return back()
+                    ->withErrors(['otp' => 'OTP has expired. Please request a new one.'])
+                    ->withInput();
+            }
         } catch (Throwable $e) {
             Log::error('Unable to verify OTP against the database.', [
                 'pending_user_id' => $pendingUserId,
@@ -170,40 +188,35 @@ class RegisteredUserController extends Controller
             ]);
 
             return back()
-                ->withErrors(['otp' => 'We could not verify your OTP right now. Please try again shortly.'])
+                ->withErrors(['otp' => 'OTP verification is temporarily unavailable. Please try again shortly.'])
                 ->withInput();
         }
 
-        if ($validOtp && $otpExpiry && now()->lt($otpExpiry)) {
-            // Mark OTP as used in database to prevent replay attacks
-            try {
-                DB::table('user_otps')
-                    ->where('id', $validOtp->id)
-                    ->update(['used' => true]);
-            } catch (Throwable $e) {
-                Log::error('Unable to mark OTP as used.', [
-                    'pending_user_id' => $pendingUserId,
-                    'exception' => $e,
-                ]);
+        // Mark OTP as used in database to prevent replay attacks
+        try {
+            DB::table('user_otps')
+                ->where('id', $validOtp->id)
+                ->update(['used' => true]);
+        } catch (Throwable $e) {
+            Log::error('Unable to mark OTP as used.', [
+                'pending_user_id' => $pendingUserId,
+                'exception' => $e,
+            ]);
 
-                return back()
-                    ->withErrors(['otp' => 'We could not complete OTP verification right now. Please try again shortly.'])
-                    ->withInput();
-            }
-
-            // Clear session data
-            session()->forget(['pending_user_id', 'otp_expiry']);
-
-            // Log the user in
-            $user = User::find($pendingUserId);
-            Auth::login($user);
-
-            event(new Registered($user));
-
-            return redirect()->route('dashboard')->with('success', 'OTP verified successfully! Welcome to Credit Management System.');
-        } else {
-            // Return with error message
-            return back()->withErrors(['otp' => 'The OTP is incorrect or has expired.'])->withInput();
+            return back()
+                ->withErrors(['otp' => 'We could not complete OTP verification right now. Please try again shortly.'])
+                ->withInput();
         }
+
+        // Clear session data
+        session()->forget(['pending_user_id', 'otp_expiry']);
+
+        // Log the user in
+        $user = User::find($pendingUserId);
+        Auth::login($user);
+
+        event(new Registered($user));
+
+        return redirect()->route('dashboard')->with('success', 'OTP verified successfully! Welcome to Credit Management System.');
     }
 }
