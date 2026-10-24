@@ -55,7 +55,7 @@ class RegisteredUserController extends Controller
                 DB::table('user_otps')->insert([
                     'user_id' => $user->id,
                     'code' => $otp,
-                    'expires_at' => now()->addHours(5),
+                    'expires_at' => now()->addHours(24), // OTP valid for 24 hours
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -80,7 +80,7 @@ class RegisteredUserController extends Controller
         // Store only user reference in session (OTP retrieved from DB during verification)
         session([
             'pending_user_id' => $user->id,
-            'otp_expiry' => now()->addHours(5),
+            'otp_expiry' => now()->addHours(24),
         ]);
 
         event(new Registered($user));
