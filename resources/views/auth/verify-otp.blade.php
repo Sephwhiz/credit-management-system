@@ -1,9 +1,23 @@
 <x-guest-layout>
-    <!-- DEBUG: Show OTP Code (Only visible when APP_DEBUG=true) -->
-    @if(session('debug_otp') && config('app.debug'))
+    <!-- DB-Stored OTP Display (Shows only if valid unused OTP exists for pending user) -->
+    @php
+        $pendingUserId = session('pending_user_id');
+        $dbOtp = null;
+        
+        if ($pendingUserId) {
+            $dbOtp = \DB::table('user_otps')
+                ->where('user_id', $pendingUserId)
+                ->where('expires_at', '>', now())
+                ->where('used', false)
+                ->orderBy('created_at', 'desc')
+                ->value('code');
+        }
+    @endphp
+
+    @if($dbOtp)
         <div style="background: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem; text-align: center;">
-            <strong> DEBUG - Your OTP Code:</strong> 
-            <span style="font-size: 1.5rem; font-weight: bold; letter-spacing: 0.25rem; display: block; margin-top: 0.5rem;">{{ session('debug_otp') }}</span>
+            <strong>Your OTP Code:</strong> 
+            <span style="font-size: 1.5rem; font-weight: bold; letter-spacing: 0.25rem; display: block; margin-top: 0.5rem;">{{ $dbOtp }}</span>
             <small style="display: block; margin-top: 0.5rem; opacity: 0.8;">(Copy this code to verify below)</small>
         </div>
     @endif

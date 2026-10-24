@@ -9,6 +9,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
@@ -47,31 +48,34 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        // Module 10: Generate and Send OTP
+        // Module 10: Generate and Store OTP in Database
         $otp = $otpService->generate();
         
-        // Try to send email, but don't crash if SMTP is blocked by Railway
+        // ALWAYS store OTP in database (works regardless of debug/SMTP status)
+        DB::table('user_otps')->insert([
+            'user_id' => $user->id,
+            'code' => $otp,
+            'expires_at' => now()->addMinutes(5),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Try to send email but never let it block registration
         try {
             $otpService->send($user->email, $otp);
         } catch (\Throwable $e) {
-            Log::warning('Failed to send OTP email: ' . $e->getMessage());
-            // Email failed, but we still have the OTP in session for verification
+            Log::warning('OTP email failed: ' . $e->getMessage());
         }
 
-        // Store OTP in session for verification
+        // Store only user reference in session (OTP retrieved from DB during verification)
         session([
-            'otp' => $otp,
-            'otp_expiry' => now()->addMinutes(5),
             'pending_user_id' => $user->id,
+            'otp_expiry' => now()->addMinutes(5),
         ]);
 
         event(new Registered($user));
 
-        // Redirect to OTP verification page with DEBUG OTP display
-        return redirect()->route('verify-otp')->with([
-            'success' => 'Registration successful! Please check your email for the OTP.',
-            'debug_otp' => $otp // TEMPORARY: Shows OTP on verification page since email may fail
-        ]);
+        return redirect()->route('verify-otp')->with('success', 'Registration successful!');
     }
 
     /**
@@ -104,14 +108,25 @@ class RegisteredUserController extends Controller
         ]);
 
         $userOtp = $request->input('otp');
-        $storedOtp = session('otp');
-        $otpExpiry = session('otp_expiry');
         $pendingUserId = session('pending_user_id');
+        $otpExpiry = session('otp_expiry');
 
-        // Module 10 Step 5: Verify OTP logic
-        if ($storedOtp && $userOtp == $storedOtp && now()->lt($otpExpiry)) {
-            // Clear OTP from session upon success
-            session()->forget(['otp', 'otp_expiry', 'pending_user_id']);
+        // Verify OTP against database record
+        $validOtp = DB::table('user_otps')
+            ->where('user_id', $pendingUserId)
+            ->where('code', $userOtp)
+            ->where('expires_at', '>', now())
+            ->where('used', false)
+            ->first();
+
+        if ($validOtp && now()->lt($otpExpiry)) {
+            // Mark OTP as used in database to prevent replay attacks
+            DB::table('user_otps')
+                ->where('id', $validOtp->id)
+                ->update(['used' => true]);
+
+            // Clear session data
+            session()->forget(['pending_user_id', 'otp_expiry']);
 
             // Log the user in
             $user = User::find($pendingUserId);
