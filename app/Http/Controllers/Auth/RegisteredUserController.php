@@ -127,6 +127,21 @@ class RegisteredUserController extends Controller
      */
     public function confirmOtp(Request $request): RedirectResponse
     {
+        // DEBUG: Show exactly what Laravel finds for this session
+        $pendingId = session('pending_user_id');
+        $otpExpiry = session('otp_expiry');
+        $serverTime = now()->setTimezone('Asia/Singapore')->toDateTimeString();
+        $dbRecord = DB::table('user_otps')
+            ->where('user_id', $pendingId)
+            ->latest()
+            ->first();
+
+        dd([
+            'Session Pending User ID' => $pendingId,
+            'Session OTP Expiry' => $otpExpiry,
+            'Current Server Time (SGT)' => $serverTime,
+            'DB Query Result' => $dbRecord,
+        ]);
         // Custom Validation per Module 10 Step 6
         $request->validate([
             'otp' => ['required', 'numeric', 'digits:6'],
