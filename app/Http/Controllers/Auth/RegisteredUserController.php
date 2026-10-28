@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
 
@@ -84,9 +83,10 @@ class RegisteredUserController extends Controller
         }
 
         try {
+            // FIX: Use whereRaw for PostgreSQL boolean compatibility
             $dbOtp = DB::table('user_otps')
                 ->where('user_id', $pendingUserId)
-                ->where('used', false)
+                ->whereRaw('"used" = false')
                 ->orderBy('created_at', 'desc')
                 ->value('code');
         } catch (Throwable $e) {
@@ -114,11 +114,11 @@ class RegisteredUserController extends Controller
         $pendingUserId = session('pending_user_id');
 
         try {
-            // SINGLE ATOMIC QUERY - prevents race conditions with Supabase pooler
+            // SINGLE ATOMIC QUERY - FIX: Use whereRaw for PostgreSQL boolean compatibility
             $validOtp = DB::table('user_otps')
                 ->where('user_id', $pendingUserId)
                 ->where('code', $userOtp)
-                ->where('used', false)
+                ->whereRaw('"used" = false')
                 ->where('expires_at', '>', now())
                 ->orderBy('created_at', 'desc')
                 ->first();
@@ -139,8 +139,10 @@ class RegisteredUserController extends Controller
                 }
             }
 
-            // Mark as used
-            DB::table('user_otps')->where('id', $validOtp->id)->update(['used' => true]);
+            // Mark as used - FIX: Use raw SQL for boolean update
+            DB::table('user_otps')
+                ->where('id', $validOtp->id)
+                ->update([DB::raw('"used" = true')]);
 
         } catch (Throwable $e) {
             Log::error('OTP verification exception.', [
