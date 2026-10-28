@@ -139,10 +139,10 @@ class RegisteredUserController extends Controller
                 }
             }
 
-            // Mark as used - FIX: Use raw SQL string directly in update()
+            // Mark as used - FIX: Array with DB::raw('true') for PG boolean compatibility
             DB::table('user_otps')
                 ->where('id', $validOtp->id)
-                ->update(DB::raw('"used" = true'));
+                ->update(['used' => DB::raw('true')]);
 
         } catch (Throwable $e) {
             Log::error('OTP verification exception.', [
