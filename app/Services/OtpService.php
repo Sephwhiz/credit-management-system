@@ -2,18 +2,31 @@
 
 namespace App\Services;
 
+use App\Mail\OtpVerificationMail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use App\Mail\SendOTPEmail;
 
 class OtpService
 {
-    public function generate(): int
+    /**
+     * Generate a 6-digit OTP code
+     */
+    public function generate(): string
     {
-        return rand(100000, 999999);
+        return str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     }
 
-    public function send(string $email, int $otp): void
+    /**
+     * Send OTP via email using Laravel Mail + Resend
+     */
+    public function send(string $email, string $code): void
     {
-        Mail::to($email)->send(new SendOTPEmail($otp));
+        try {
+            Mail::to($email)->send(new OtpVerificationMail($code));
+            Log::info("OTP email sent successfully to {$email}");
+        } catch (\Throwable $e) {
+            Log::error("Failed to send OTP email to {$email}: " . $e->getMessage());
+            throw $e; // Re-throw so controller can catch it
+        }
     }
 }
