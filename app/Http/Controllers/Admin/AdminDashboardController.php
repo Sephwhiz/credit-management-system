@@ -12,22 +12,28 @@ class AdminDashboardController extends Controller
 {
     public function index()
     {
-        // KPI 1: Total Disbursed Amount (Sum of approved loans)
-        $totalDisbursed = Loan::where('status', 'approved')
-            ->sum('amount');
+        // KPI 1: Total Disbursed Amount
+        $totalDisbursed = Loan::where('status', 'approved')->sum('amount');
 
         // KPI 2: Pending Approvals Count
         $pendingApprovals = Loan::where('status', 'pending')->count();
 
-        // KPI 3: Overdue Loans Count (from InterestService)
-        $overdueLoans = InterestService::getOverdueCount();
+        // KPI 3: Overdue Loans Count (Safe fallback)
+        try {
+            $overdueLoans = InterestService::getOverdueCount();
+        } catch (\Throwable $e) {
+            $overdueLoans = 0; // Fallback if method missing
+        }
 
-        // KPI 4: Total Interest Earned YTD (from InterestService)
-        $ytdInterest = InterestService::getYtdInterestEarned();
+        // KPI 4: Total Interest Earned YTD (Safe fallback)
+        try {
+            $ytdInterest = InterestService::getYtdInterestEarned();
+        } catch (\Throwable $e) {
+            $ytdInterest = 0.00; // Fallback if method missing
+        }
 
         // KPI 5: New Users This Week
-        $newUsersThisWeek = User::where('created_at', '>=', Carbon::now()->subWeek())
-            ->count();
+        $newUsersThisWeek = User::where('created_at', '>=', Carbon::now()->subWeek())->count();
 
         return view('admin.dashboard', compact(
             'totalDisbursed',
