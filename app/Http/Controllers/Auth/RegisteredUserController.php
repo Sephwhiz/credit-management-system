@@ -19,29 +19,19 @@ use Throwable;
 
 class RegisteredUserController extends Controller
 {
-    /**
-     * Display the registration view.
-     */
     public function create(): View
     {
         return view('auth.register');
     }
 
-    /**
-     * Handle an incoming registration request.
-     *
-     * @throws ValidationException
-     */
     public function store(Request $request, OtpService $otpService): RedirectResponse
     {
         session()->forget(['pending_user_id', 'otp_expiry']);
 
-        // Module 9: reCAPTCHA Validation (Temporarily Disabled)
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            // 'g-recaptcha-response' => ['required', 'captcha'],
         ]);
 
         try {
@@ -57,7 +47,7 @@ class RegisteredUserController extends Controller
                 DB::table('user_otps')->insert([
                     'user_id' => $user->id,
                     'code' => $otp,
-                    'expires_at' => now()->addHours(24), // OTP valid for 24 hours
+                    'expires_at' => now()->addHours(24),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -66,37 +56,27 @@ class RegisteredUserController extends Controller
             });
         } catch (Throwable $e) {
             Log::error('Unable to create user registration OTP.', ['exception' => $e]);
-
-            return back()
-                ->withInput($request->except('password', 'password_confirmation'))
+            return back()->withInput($request->except('password', 'password_confirmation'))
                 ->withErrors(['registration' => 'We could not complete your registration right now. Please try again.']);
         }
 
-        // Try to send email but never let it block registration
         try {
             $otpService->send($user->email, $otp);
         } catch (\Throwable $e) {
             Log::warning('OTP email failed: ' . $e->getMessage());
         }
 
-        // Store only user reference in session (OTP retrieved from DB during verification)
         session([
             'pending_user_id' => $user->id,
             'otp_expiry' => now()->addHours(24),
         ]);
 
         event(new Registered($user));
-
         return redirect()->route('verify-otp')->with('success', 'Registration successful!');
     }
 
-    /**
-     * Show the OTP verification form.
-     * Module 10 Step 5: Verify OTP and Handle Verification Flow
-     */
     public function showOtpVerification(): View|RedirectResponse
     {
-        // Ensure there's a pending OTP in session
         $pendingUserId = session('pending_user_id');
 
         if (!$pendingUserId) {
@@ -110,25 +90,18 @@ class RegisteredUserController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->value('code');
         } catch (Throwable $e) {
-            Log::error('Unable to load pending OTP.', [
-                'pending_user_id' => $pendingUserId,
-                'exception' => $e,
-            ]);
-
-            return view('auth.verify-otp', ['dbOtp' => null])
-                ->with('error', 'We could not load your verification code right now. You can still enter the code sent to your email, or try again shortly.');
+            Log::error('Unable to load pending OTP.', ['pending_user_id' => $pendingUserId, 'exception' => $e]);
+            $dbOtp = null;
         }
 
-        return view('auth.verify-otp', compact('dbOtp'));
+        // DEBUG: Show OTP code only when APP_DEBUG is true
+        $debugCode = config('app.debug') ? $dbOtp : null;
+
+        return view('auth.verify-otp', compact('dbOtp', 'debugCode'));
     }
 
-    /**
-     * Confirm the OTP entered by the user.
-     * Module 10 Step 6: Customize OTP Handling and Error Messages
-     */
     public function confirmOtp(Request $request): RedirectResponse
     {
-        // Custom Validation per Module 10 Step 6
         $request->validate([
             'otp' => ['required', 'numeric', 'digits:6'],
         ], [
@@ -140,8 +113,8 @@ class RegisteredUserController extends Controller
         $userOtp = $request->input('otp');
         $pendingUserId = session('pending_user_id');
 
-        // Verify OTP against database record - SINGLE ATOMIC QUERY
         try {
+            // SINGLE ATOMIC QUERY - prevents race conditions with Supabase pooler
             $validOtp = DB::table('user_otps')
                 ->where('user_id', $pendingUserId)
                 ->where('code', $userOtp)
@@ -151,7 +124,7 @@ class RegisteredUserController extends Controller
                 ->first();
 
             if (!$validOtp) {
-                // Determine specific failure reason for better UX
+                // Determine specific failure reason
                 $anyOtp = DB::table('user_otps')
                     ->where('user_id', $pendingUserId)
                     ->where('code', $userOtp)
@@ -165,40 +138,26 @@ class RegisteredUserController extends Controller
                     return back()->withErrors(['otp' => 'OTP has expired. Please request a new one.'])->withInput();
                 }
             }
+
+            // Mark as used
+            DB::table('user_otps')->where('id', $validOtp->id)->update(['used' => true]);
+
         } catch (Throwable $e) {
-            Log::error('Unable to verify OTP against the database.', [
+            Log::error('OTP verification exception.', [
                 'pending_user_id' => $pendingUserId,
-                'exception' => $e,
+                'exception_message' => $e->getMessage(),
+                'exception_file' => $e->getFile(),
+                'exception_line' => $e->getLine()
             ]);
 
-            return back()
-                ->withErrors(['otp' => 'OTP verification is temporarily unavailable. Please try again shortly.'])
-                ->withInput();
+            // TEMPORARY: Show exact error for debugging
+            return back()->withErrors(['otp' => 'ERROR: ' . $e->getMessage()])->withInput();
         }
 
-        // Mark OTP as used in database to prevent replay attacks
-        try {
-            DB::table('user_otps')
-                ->where('id', $validOtp->id)
-                ->update(['used' => true]);
-        } catch (Throwable $e) {
-            Log::error('Unable to mark OTP as used.', [
-                'pending_user_id' => $pendingUserId,
-                'exception' => $e,
-            ]);
-
-            return back()
-                ->withErrors(['otp' => 'We could not complete OTP verification right now. Please try again shortly.'])
-                ->withInput();
-        }
-
-        // Clear session data
         session()->forget(['pending_user_id', 'otp_expiry']);
 
-        // Log the user in
         $user = User::find($pendingUserId);
         Auth::login($user);
-
         event(new Registered($user));
 
         return redirect()->route('dashboard')->with('success', 'OTP verified successfully! Welcome to Credit Management System.');
